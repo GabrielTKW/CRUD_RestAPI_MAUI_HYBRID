@@ -1,0 +1,147 @@
+﻿@page "/users"
+@using System.Collections.Generic
+@using System.Threading.Tasks
+@using Components.Services
+@using Shared.Models
+@inject IUserService UserService
+
+<h3>Users</h3>
+
+@if (users == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>User ID</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Is Intern</th>
+                <th>Supervisor User ID</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in users)
+            {
+                <tr>
+                    <td>@user.Userid</td>
+                    <td>@user.Name</td>
+                    <td>@user.Role</td>
+                    <td>@user.Isintern</td>
+                    <td>@user.Supervisoruserid</td>
+                    <td>@(user.Startdate.HasValue ? user.Startdate.Value.ToShortDateString() : "-")</td>
+                    <td>@(user.Enddate.HasValue ? user.Enddate.Value.ToShortDateString() : "-")</td>
+                    <td>
+                        <button class="btn btn-primary" @onclick="() => EditUser(user)">Edit</button>
+                        <button class="btn btn-danger" @onclick="() => DeleteUser(user.Userid)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<button class="btn btn-success" @onclick="AddUser">Add User</button>
+<p>Show Add/Edit Modal: @showAddEditModal.ToString()</p>
+@if (selectedUser.Userid != null)
+{
+    
+<p>Show Selected Id: @selectedUser.Userid.ToString()</p>
+}
+
+<AddEditUserField ShowModal="@showAddEditModal" ModalTitle="@modalTitle" User="@selectedUser" OnSave="HandleSaveUser" />
+
+@code {
+    private List<Users> users;
+    private bool showAddEditModal = false;
+    private string modalTitle = "";
+    private Users selectedUser = new Users();
+    private string action = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        users = (await UserService.GetUsers()).ToList();
+    }
+
+    private async Task AddUser()
+    {
+        selectedUser = new Users(); //Create a new user data pass it into component  
+        modalTitle = "Add User"; //Search the title of the pop of component 
+        showAddEditModal = true; //Make the popUpComponent appear 
+        action = "add";
+    }
+
+    private async Task EditUser(Users user)
+    {
+        //pass the User data into the component 
+        selectedUser = user;
+        modalTitle = "Edit User";
+        showAddEditModal = true;
+        action = "edit";
+    }
+
+    private async Task HandleSaveUser(bool saved)
+    {
+        if (saved)
+        {
+            if (action == "add")
+            {
+                var result = await UserService.PostUser(selectedUser);
+                if (result != null)
+                {
+                    await LoadUsers(); // Refresh the user list after adding
+                }
+                else
+                {
+                    // Handle error in adding user
+                }
+            }
+            else
+            {
+                var result = await UserService.PutUser(selectedUser.Userid, selectedUser);
+                if (result)
+                {
+                    await LoadUsers(); // Refresh the user list after updating
+                }
+                else
+                {
+                    // Handle error in updating user
+                }
+            }
+        }
+
+        // Close the modal
+        showAddEditModal = false;
+
+        //Reset all the field into empty 
+        selectedUser = new Users();
+    }
+
+    private async Task DeleteUser(string userId)
+    {
+        var confirmed = true;
+        if (confirmed)
+        {
+            var result = await UserService.DeleteUser(userId);
+            if (result)
+            {
+                await LoadUsers(); // Refresh the user list after deletion
+            }
+            else
+            {
+                // Display error message or handle failed deletion
+            }
+        }
+    }
+}
